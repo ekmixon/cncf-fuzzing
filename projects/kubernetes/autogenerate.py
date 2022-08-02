@@ -29,8 +29,7 @@ internal_target_list = []
 # and should return a string like this:
 # k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1
 def get_import_path(line):
-	import_path = line.split(":")[0].split("./staging/src/")[-1].rsplit("/", 1)[0]
-	return import_path
+	return line.split(":")[0].split("./staging/src/")[-1].rsplit("/", 1)[0]
 
 
 
@@ -44,7 +43,7 @@ def create_fuzzer_name(struct_name, import_path):
 	last = split_import_path[-1]
 
 	fuzz_name = "Fuzz"
-	fuzz_name += "%s%s%s"%(second_last, last, struct_name)
+	fuzz_name += f"{second_last}{last}{struct_name}"
 	return fuzz_name
 
 
@@ -55,7 +54,7 @@ def create_import_id(import_path):
 	split_import_path = import_path.split("/")
 	second_last = split_import_path[-2]
 	last = split_import_path[-1]
-	return "%s%s"%(second_last, last)
+	return f"{second_last}{last}"
 
 
 # protobuf test below is from: https://github.com/kubernetes/kubernetes/blob/a5489431cfc0598dad421fccd2d713f84bf520bd/pkg/api/testing/serialization_proto_test.go#L100
@@ -90,7 +89,7 @@ def create_import_id(import_path):
 #	checkData(correctData1, correctData2)
 # }
 def create_internal_target(import_id, struct_name):
-	func_name = "fuzz%s%s"%(import_id, struct_name)
+	func_name = f"fuzz{import_id}{struct_name}"
 	fuzzer_template1 = ""
 	fuzzer_template1 += "func %s(data []byte) {\n"%(func_name)
 	fuzzer_template1 += "\tm1 := &%s.%s{}"%(import_id, struct_name)
@@ -128,16 +127,13 @@ def create_internal_target(import_id, struct_name):
 # This creates the part of the main harness that determines
 # which marshaling function should be called.
 def create_fuzzer_branches():
-	i = 0
 	body = ""
-	for target in internal_target_list:
+	for i, target in enumerate(internal_target_list):
 		if i==0:
 			body += "\tif op%%noOfTargets==%s {\n"%(i)
-			body +="\t\t%s(inputData)\n"%(target)
 		else:
 			body += "\t} else if op%%noOfTargets==%s {\n"%(i)
-			body +="\t\t%s(inputData)\n"%(target)
-		i+=1
+		body +="\t\t%s(inputData)\n"%(target)
 	body += "\t}\n"
 	return body
 
@@ -154,11 +150,7 @@ def get_check_data_func():
 # - main fuzz harness
 # - all internal functions called by the main harness
 def create_fuzz_harness(import_string, internal_targets):
-	fuzz_harness = ""
-
-	# package
-	fuzz_harness += "package fuzzing\n"
-	
+	fuzz_harness = "" + "package fuzzing\n"
 	# imports
 	fuzz_harness += "import (\n"
 	fuzz_harness += "\t\"fmt\"\n"
@@ -220,7 +212,7 @@ def create_data(input_file):
 			# but it is easy for now.
 			if "example" in line:
 				continue
-			
+
 			# For now we only support pointers to structs.
 			# Todo: fix this
 			if "func (m *" not in line:
